@@ -109,13 +109,19 @@ namespace FileServerCsharp
                 {
                     // All the data has been read from the 
                     // client. Display it on the console.
-                    Console.WriteLine("Read {0} bytes from socket. \n Data : {1}",
-                        content.Length, content);
+                    Console.WriteLine("finish read from socket.");
                     // Echo the data back to the client.
-                    Send(handler, content);
+                    //Send(handler, content);
                 }
                 else
                 {
+                    string[] receive_lines = content.Split(new string[] { "\n"}, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string s in receive_lines)
+                    {
+                        Console.WriteLine(s);
+                    }
+                    state.sb.Clear();
+                    state.sb.Append(receive_lines[receive_lines.Length - 1]);
                     // Not all data received. Get more.
                     handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0,
                     new AsyncCallback(ReadCallback), state);
