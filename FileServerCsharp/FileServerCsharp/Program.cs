@@ -6,162 +6,90 @@ using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.IO;
 
 namespace FileServerCsharp
 {
-    // State object for reading client data asynchronously
-    public class StateObject
+    public class AsyncService
     {
-        // Client  socket.
-        public Socket workSocket = null;
-        // Size of receive buffer.
-        public const int BufferSize = 1024;
-        // Receive buffer.
-        public byte[] buffer = new byte[BufferSize];
-        // Received data string.
-        public StringBuilder sb = new StringBuilder();
-    }
-
-    class Program
-    {
-        // Thread signal.
-        public static ManualResetEvent allDone = new ManualResetEvent(false);
-
-        public static void StartListening()
+        private IPAddress ipAddress;
+        private int port;
+        public AsyncService(int port)
         {
-            // Establish the local endpoint for the socket.
-            IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, 1234);
-
-            // Create a TCP/IP socket.
-            Socket listener = new Socket(AddressFamily.InterNetwork,
-                SocketType.Stream, ProtocolType.Tcp);
-
-            // Bind the socket to the local endpoint and listen for incoming connections.
+            this.port = port;
+            this.ipAddress = IPAddress.Any;
+        }
+        public async void Run()
+        {
+            TcpListener listener = new TcpListener(this.ipAddress, this.port);
+            listener.Start();
+            Console.Write("File Transfer service is now running");
+          
+            Console.WriteLine(" on port " + this.port);
+            Console.WriteLine("Hit <enter> to stop service\n");
+            while (true)
+            {
+                try
+                {
+                    TcpClient tcpClient = await listener.AcceptTcpClientAsync();
+                    Task t = Process(tcpClient);
+                    //await t;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+        }
+        private async Task Process(TcpClient tcpClient)
+        {
+            string clientEndPoint =
+              tcpClient.Client.RemoteEndPoint.ToString();
+            Console.WriteLine("Received connection request from "
+              + clientEndPoint);
             try
             {
-                listener.Bind(localEndPoint);
-                listener.Listen(100);
-
+                NetworkStream networkStream = tcpClient.GetStream();
+                StreamReader reader = new StreamReader(networkStream);
+                StreamWriter writer = new StreamWriter(networkStream);
+                writer.AutoFlush = true;
                 while (true)
                 {
-                    // Set the event to nonsignaled state.
-                    allDone.Reset();
-
-                    // Start an asynchronous socket to listen for connections.
-                    Console.WriteLine("Waiting for a connection...");
-                    listener.BeginAccept(
-                        new AsyncCallback(AcceptCallback),
-                        listener);
-
-                    // Wait until a connection is made before continuing.
-                    allDone.WaitOne();
-                }
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-
-            Console.WriteLine("\nPress ENTER to continue...");
-            Console.Read();
-
-        }
-
-        public static void AcceptCallback(IAsyncResult ar)
-        {
-            // Signal the main thread to continue.
-            allDone.Set();
-
-            // Get the socket that handles the client request.
-            Socket listener = (Socket)ar.AsyncState;
-            Socket handler = listener.EndAccept(ar);
-
-            // Create the state object.
-            StateObject state = new StateObject();
-            state.workSocket = handler;
-            handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0,
-                new AsyncCallback(ReadCallback), state);
-        }
-
-        public static void ReadCallback(IAsyncResult ar)
-        {
-            String content = String.Empty;
-
-            // Retrieve the state object and the handler socket
-            // from the asynchronous state object.
-            StateObject state = (StateObject)ar.AsyncState;
-            Socket handler = state.workSocket;
-
-            // Read data from the client socket. 
-            int bytesRead = handler.EndReceive(ar);
-
-            if (bytesRead > 0)
-            {
-                // There  might be more data, so store the data received so far.
-                state.sb.Append(Encoding.ASCII.GetString(
-                    state.buffer, 0, bytesRead));
-
-                // Check for end-of-file tag. If it is not there, read 
-                // more data.
-                content = state.sb.ToString();
-                if (content.IndexOf("<EOF>") > -1)
-                {
-                    // All the data has been read from the 
-                    // client. Display it on the console.
-                    Console.WriteLine("finish read from socket.");
-                    // Echo the data back to the client.
-                    //Send(handler, content);
-                }
-                else
-                {
-                    string[] receive_lines = content.Split(new string[] { "\n"}, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (string s in receive_lines)
+                    string request = await reader.ReadLineAsync();
+                    if (request != null)
                     {
-                        Console.WriteLine(s);
+                        Console.WriteLine("Received service request: " + request);
                     }
-                    state.sb.Clear();
-                    state.sb.Append(receive_lines[receive_lines.Length - 1]);
-                    // Not all data received. Get more.
-                    handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0,
-                    new AsyncCallback(ReadCallback), state);
+                    else
+                        break; // Client closed connection
                 }
+                tcpClient.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                if (tcpClient.Connected)
+                    tcpClient.Close();
             }
         }
-
-        private static void Send(Socket handler, String data)
-        {
-            // Convert the string data to byte data using ASCII encoding.
-            byte[] byteData = Encoding.ASCII.GetBytes(data);
-
-            // Begin sending the data to the remote device.
-            handler.BeginSend(byteData, 0, byteData.Length, 0,
-                new AsyncCallback(SendCallback), handler);
-        }
-
-        private static void SendCallback(IAsyncResult ar)
+    }
+    class Program
+    {
+        static void Main(string[] args)
         {
             try
             {
-                // Retrieve the socket from the state object.
-                Socket handler = (Socket)ar.AsyncState;
-
-                // Complete sending the data to the remote device.
-                int bytesSent = handler.EndSend(ar);
-                Console.WriteLine("Sent {0} bytes to client.", bytesSent);
-
-                handler.Shutdown(SocketShutdown.Both);
-                handler.Close();
-
+                int port = 1234;
+                AsyncService service = new AsyncService(port);
+                service.Run();
+                Console.ReadLine();
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Console.WriteLine(e.ToString());
+                Console.WriteLine(ex.Message);
+                Console.ReadLine();
             }
-        }
-        static void Main(string[] args)
-        {
-            StartListening();
         }
     }
+   
 }
