@@ -8,6 +8,8 @@ using System.Net.Sockets;
 using System.Threading;
 using System.IO;
 
+using FileTransferCommon;
+
 namespace FileServerCsharp
 {
     public class AsyncService
@@ -50,19 +52,7 @@ namespace FileServerCsharp
             try
             {
                 NetworkStream networkStream = tcpClient.GetStream();
-                StreamReader reader = new StreamReader(networkStream);
-                StreamWriter writer = new StreamWriter(networkStream);
-                writer.AutoFlush = true;
-                while (true)
-                {
-                    string request = await reader.ReadLineAsync();
-                    if (request != null)
-                    {
-                        Console.WriteLine("Received service request: " + request);
-                    }
-                    else
-                        break; // Client closed connection
-                }
+                CommandResolve.ProcessStream(networkStream);               
                 tcpClient.Close();
             }
             catch (Exception ex)

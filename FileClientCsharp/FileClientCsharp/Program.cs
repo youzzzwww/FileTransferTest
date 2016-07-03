@@ -7,6 +7,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.IO;
 
+using FileTransferCommon;
+
 namespace FileClientCsharp
 {
     class Program
@@ -19,13 +21,11 @@ namespace FileClientCsharp
                 TcpClient client = new TcpClient();
                 await client.ConnectAsync(IPAddress.Parse(server), port); // Connect
                 NetworkStream networkStream = client.GetStream();
-                StreamWriter writer = new StreamWriter(networkStream);
-                StreamReader reader = new StreamReader(networkStream);
-                writer.AutoFlush = true;
+
                 string line;
                 while ((line = Console.ReadLine()) != null)
-                {                  
-                    await writer.WriteLineAsync(line);
+                {
+                    CommandResolve.ProcessInput(networkStream, line);
                 }
                 client.Close();
             }
@@ -36,7 +36,7 @@ namespace FileClientCsharp
         }
         static void Main(string[] args)
         {
-            Task A = Task.Run(() => SendRequest("127.0.0.1", 1234));
+            Task A = SendRequest("127.0.0.1", 1234);
             A.Wait();
         }
     }
