@@ -125,7 +125,7 @@ namespace FileTransferCommon
                     {
                         IPEndPoint localPoint = fileReceive.InitAndGetLocalEndPoint();
                         fileReceive.Run();
-                        return "move " + input_array[2] + " " + input_array[1] + " "
+                        return "move " + input_array[1] + " " + input_array[2] + " "
                             + seek_position + " " + localPoint.Address + " " + localPoint.Port;
                     }
                     else
@@ -138,7 +138,7 @@ namespace FileTransferCommon
             }
             else if (command == "move")
             {
-                await FileSend.SendFile(input_array[2], Convert.ToInt64(input_array[3]), 
+                await FileSend.SendFile(input_array[1], Convert.ToInt64(input_array[3]), 
                     input_array[4], Convert.ToInt32(input_array[5]));
                 return null;
             }
