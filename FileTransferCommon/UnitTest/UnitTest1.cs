@@ -2,7 +2,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using FileTransferCommon;
 
-namespace UnitTest
+namespace FileTransferCommon.Tests
 {
     [TestClass]
     public class UnitTest1
@@ -11,8 +11,7 @@ namespace UnitTest
         public void TestFileCommon()
         {
             string file_path = @"F:\project\FileTransfer\Test\example.txt";
-            FileCommon fileTest = new FileCommon(file_path);
-            Assert.IsTrue(fileTest.GetSize() > 0);
+            Assert.IsTrue(FileCommon.GetSize(file_path) > 0);
         }
         [TestMethod]
         public void TestFileReceiveGetLocalPort()
@@ -20,6 +19,12 @@ namespace UnitTest
             string file_path = @"F:\project\FileTransfer\Test\example_test.txt";
             FileReceive recTest = new FileReceive(file_path);
             Console.WriteLine(recTest.InitAndGetLocalEndPoint().ToString());
+        }
+        [TestMethod()]
+        public void ComputeHashTest()
+        {
+            string file_path = @"F:\project\FileTransfer\Test\example.txt";
+            Console.WriteLine(FileCommon.ComputeHash(file_path));
         }
     }
 }

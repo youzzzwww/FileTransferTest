@@ -9,51 +9,6 @@ using System.Net.Sockets;
 
 namespace FileTransferCommon
 {
-    public class FileCommon
-    {
-        private string _file_name;
-        private string _file_information_record;
-        private FileStream _file_stream;
-
-        public FileCommon(string filename)
-        {
-            _file_name = filename;
-            _file_information_record = _file_name + ".record";
-        }
-
-        public bool Exists() { return File.Exists(_file_name); }
-        public long GetSize() { return new FileInfo(_file_name).Length; }
-        public static long GetSize(string file_path)
-        {
-            if (File.Exists(file_path))
-                return new FileInfo(file_path).Length;
-            else
-                return 0;
-        }
-        public long PrepareToWrite(long file_size)
-        {
-            long current_size = FileCommon.GetSize(_file_name);
-            if (file_size > current_size)
-            {
-                _file_stream = new FileStream(_file_name, FileMode.Append, FileAccess.Write);
-                return current_size;
-            }
-            else
-                return -1;
-        }
-        public void Write(ref byte[] buffer, int size)
-        {
-            _file_stream.Write(buffer, 0, size);
-        }
-        public async Task WriteAsync(byte[] buffer, int size)
-        {
-            await _file_stream.WriteAsync(buffer, 0, size);
-        }
-        public void Close()
-        {
-            _file_stream.Close();
-        }
-    }
     public class CommandResolve
     {
         public CommandResolve() { }
@@ -71,27 +26,34 @@ namespace FileTransferCommon
         }
         public static async Task ProcessStream(Stream networkStream)
         {
-            using (StreamReader reader = new StreamReader(networkStream))
+            try
             {
-                using (StreamWriter writer = new StreamWriter(networkStream))
+                using (StreamReader reader = new StreamReader(networkStream))
                 {
-                    writer.AutoFlush = true;
-                    while (true)
+                    using (StreamWriter writer = new StreamWriter(networkStream))
                     {
-                        string request = await reader.ReadLineAsync();
-                        if (request != null)
+                        writer.AutoFlush = true;
+                        while (true)
                         {
-                            Console.WriteLine("Received echo: " + request);
-                            string echo_str = await CommandResolve.Resolve(request);
-                            if (!String.IsNullOrEmpty(echo_str))
+                            string request = await reader.ReadLineAsync();
+                            if (request != null)
                             {
-                                await writer.WriteLineAsync(echo_str);
+                                Console.WriteLine("Received echo: " + request);
+                                string echo_str = await CommandResolve.Resolve(request);
+                                if (!String.IsNullOrEmpty(echo_str))
+                                {
+                                    await writer.WriteLineAsync(echo_str);
+                                }
                             }
+                            else
+                                break; // Client closed connection
                         }
-                        else
-                            break; // Client closed connection
                     }
-                }               
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
             }
         }
         public static async Task<string> Resolve(string input_line)
@@ -110,17 +72,17 @@ namespace FileTransferCommon
                 if (input_array.Length == 3 && File.Exists(input_array[1]))
                 {
                     return "upload " + input_array[1] + " " + input_array[2]
-                        + " " + FileCommon.GetSize(input_array[1]);
+                        + " " + FileCommon.GetSize(input_array[1]) + " " + FileCommon.ComputeHash(input_array[1]);
                 }
                 else
                     return "error number of parameters in store command.";
             }
             else if (command == "upload")
             {
-                if (input_array.Length == 4 && Convert.ToInt64(input_array[3])>0)
+                if (input_array.Length == 5 && Convert.ToInt64(input_array[3])>0)
                 {
                     FileReceive fileReceive = new FileReceive(input_array[2]);
-                    long seek_position = fileReceive.PrepareToWrite(Convert.ToInt64(input_array[3]));
+                    long seek_position = fileReceive.PrepareToWrite(Convert.ToInt64(input_array[3]), input_array[4]);
                     if (seek_position >= 0)
                     {
                         IPEndPoint localPoint = fileReceive.InitAndGetLocalEndPoint();
