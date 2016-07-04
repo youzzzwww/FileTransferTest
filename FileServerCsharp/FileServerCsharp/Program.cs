@@ -51,8 +51,10 @@ namespace FileServerCsharp
               + clientEndPoint);
             try
             {
-                NetworkStream networkStream = tcpClient.GetStream();
-                CommandResolve.ProcessStream(networkStream);               
+                using (NetworkStream networkStream = tcpClient.GetStream())
+                {
+                    await CommandResolve.ProcessStream(networkStream);
+                }
                 tcpClient.Close();
             }
             catch (Exception ex)

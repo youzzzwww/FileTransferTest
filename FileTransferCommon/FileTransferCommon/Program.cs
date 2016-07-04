@@ -45,43 +45,56 @@ namespace FileTransferCommon
         {
             _file_stream.Write(buffer, 0, size);
         }
+        public async Task WriteAsync(byte[] buffer, int size)
+        {
+            await _file_stream.WriteAsync(buffer, 0, size);
+        }
+        public void Close()
+        {
+            _file_stream.Close();
+        }
     }
     public class CommandResolve
     {
         public CommandResolve() { }
-        public static void ProcessInput(Stream networkStream, string input_line)
+        public static async Task ProcessInput(Stream networkStream, string input_line)
         {
             if (!String.IsNullOrEmpty(input_line))
             {
                 using (StreamWriter writer = new StreamWriter(networkStream))
                 {
-                    writer.WriteLine(input_line);
-                }
-                CommandResolve.ProcessStream(networkStream);
+                    writer.AutoFlush = true;
+                    await writer.WriteLineAsync(await CommandResolve.Resolve(input_line));
+                    await CommandResolve.ProcessStream(networkStream);
+                }               
             }
         }
-        public static void ProcessStream(Stream networkStream)
+        public static async Task ProcessStream(Stream networkStream)
         {
-            StreamReader reader = new StreamReader(networkStream);
-            StreamWriter writer = new StreamWriter(networkStream);
-            writer.AutoFlush = true;
-            while (true)
+            using (StreamReader reader = new StreamReader(networkStream))
             {
-                string request = reader.ReadLine();
-                if (request != null)
+                using (StreamWriter writer = new StreamWriter(networkStream))
                 {
-                    Console.WriteLine("Received echo: " + request);
-                    string echo_str = CommandResolve.Resolve(ref request);
-                    if (!String.IsNullOrEmpty(echo_str))
+                    writer.AutoFlush = true;
+                    while (true)
                     {
-                        writer.WriteLine(echo_str);
+                        string request = await reader.ReadLineAsync();
+                        if (request != null)
+                        {
+                            Console.WriteLine("Received echo: " + request);
+                            string echo_str = await CommandResolve.Resolve(request);
+                            if (!String.IsNullOrEmpty(echo_str))
+                            {
+                                await writer.WriteLineAsync(echo_str);
+                            }
+                        }
+                        else
+                            break; // Client closed connection
                     }
-                }
-                else
-                    break; // Client closed connection
+                }               
             }
         }
-        public static string Resolve(ref string input_line)
+        public static async Task<string> Resolve(string input_line)
         {
             string[] input_array = input_line.Split();
             string command = input_array[0];
@@ -90,7 +103,7 @@ namespace FileTransferCommon
                 if (input_array.Length == 3)
                     return "store " + input_array[1] + " " + input_array[2];
                 else
-                    return "error numbers of parameters in retrieve command.";
+                    return "error number of parameters in retrieve command.";
             }
             else if (command == "store")
             {
@@ -100,7 +113,7 @@ namespace FileTransferCommon
                         + " " + FileCommon.GetSize(input_array[1]);
                 }
                 else
-                    return "error numbers of parameters in store command.";
+                    return "error number of parameters in store command.";
             }
             else if (command == "upload")
             {
@@ -108,17 +121,24 @@ namespace FileTransferCommon
                 {
                     FileReceive fileReceive = new FileReceive(input_array[2]);
                     long seek_position = fileReceive.PrepareToWrite(Convert.ToInt64(input_array[3]));
-                    IPEndPoint localPoint = fileReceive.InitAndGetLocalEndPoint();
-                    fileReceive.Run();
-                    return "move " + input_array[2] + " " + input_array[1] + " "
-                        + seek_position + " " + localPoint.Address + " " + localPoint.Port;
+                    if (seek_position >= 0)
+                    {
+                        IPEndPoint localPoint = fileReceive.InitAndGetLocalEndPoint();
+                        fileReceive.Run();
+                        return "move " + input_array[2] + " " + input_array[1] + " "
+                            + seek_position + " " + localPoint.Address + " " + localPoint.Port;
+                    }
+                    else
+                    {
+                        return "error file already exists";
+                    }
                 }
                 else
                     return "error file size";
             }
             else if (command == "move")
             {
-                Task fileSendTask = FileSend.SendFile(input_array[1], Convert.ToInt64(input_array[3]), 
+                await FileSend.SendFile(input_array[2], Convert.ToInt64(input_array[3]), 
                     input_array[4], Convert.ToInt32(input_array[5]));
                 return null;
             }

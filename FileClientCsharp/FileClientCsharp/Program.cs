@@ -20,12 +20,14 @@ namespace FileClientCsharp
             {
                 TcpClient client = new TcpClient();
                 await client.ConnectAsync(IPAddress.Parse(server), port); // Connect
-                NetworkStream networkStream = client.GetStream();
 
-                string line;
-                while ((line = Console.ReadLine()) != null)
-                {
-                    CommandResolve.ProcessInput(networkStream, line);
+                using (NetworkStream networkStream = client.GetStream())
+                { 
+                    string line;
+                    while ((line = Console.ReadLine()) != null)
+                    {
+                        await CommandResolve.ProcessInput(networkStream, line);
+                    }
                 }
                 client.Close();
             }

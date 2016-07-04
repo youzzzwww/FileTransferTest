@@ -27,14 +27,18 @@ namespace FileTransferCommon
                     using (FileStream file_send = new FileStream(file_path, FileMode.Open, FileAccess.Read, FileShare.Read))
                     {
                         file_send.Seek(offset, SeekOrigin.Begin);
-                        int bytes_read = file_send.Read(send_buffer, 0, _default_buffer_size);
-                        while (bytes_read > 0)
-                        {
+                        int bytes_read = 0;
+                        UTF8Encoding temp = new UTF8Encoding(true);
+                        while ((bytes_read = await file_send.ReadAsync(send_buffer, 0, _default_buffer_size)) > 0)
+                        {                           
                             await networkStream.WriteAsync(send_buffer, 0, bytes_read);
+                            Console.WriteLine("file send:" + temp.GetString(send_buffer,0, bytes_read) 
+                                + ", send size:" + bytes_read);
                         }
                     }
                 }
                 client.Close();
+                Console.WriteLine("file send complete");
             }
             catch (Exception ex)
             {
@@ -56,14 +60,27 @@ namespace FileTransferCommon
         {
             return _file_common.PrepareToWrite(file_size);
         }
+        private static IPAddress LocalIPAddress()
+        {
+            if (!System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
+            {
+                return null;
+            }
+            IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
+            return host
+                .AddressList
+                .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+        }
         public IPEndPoint InitAndGetLocalEndPoint()
         {
             _listener = new TcpListener(new IPEndPoint(IPAddress.Any, 0));
             _listener.Start();
             Console.WriteLine("File receive listening:");
-            return (IPEndPoint)_listener.LocalEndpoint;
+
+            int local_port = ((IPEndPoint)_listener.LocalEndpoint).Port;
+            return new IPEndPoint(FileReceive.LocalIPAddress(), local_port);
         }
-        public async void Run()
+        public async Task Run()
         {        
             try
             {
@@ -88,17 +105,22 @@ namespace FileTransferCommon
 
                 using (NetworkStream networkStream = tcpClient.GetStream())
                 {
+                    UTF8Encoding temp = new UTF8Encoding(true);
                     while (true)
                     {
                         int receiveSize = await networkStream.ReadAsync(dataBuffer, 0, _default_buffer_size);
                         if (receiveSize > 0)
                         {
-                            _file_common.Write(ref dataBuffer, receiveSize);
+                            await _file_common.WriteAsync(dataBuffer, receiveSize);
+                            Console.WriteLine("file receive:"+ temp.GetString(dataBuffer,0, receiveSize)
+                                +", receive size:"+receiveSize);
                         }
                         else
                             break; // Client closed connection
                     }
                 }
+                Console.WriteLine("receive complete and close data transmission");
+                _file_common.Close();
                 tcpClient.Close();
             }
             catch (Exception ex)

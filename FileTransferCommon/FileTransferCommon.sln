@@ -5,6 +5,8 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileTransferCommon", "FileTransferCommon\FileTransferCommon.csproj", "{0D4B81EA-D40C-4B77-B494-EC707D4EFC55}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTest", "UnitTest\UnitTest.csproj", "{36177226-0E42-4E2F-AD98-3C4DCAF7810E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{0D4B81EA-D40C-4B77-B494-EC707D4EFC55}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0D4B81EA-D40C-4B77-B494-EC707D4EFC55}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0D4B81EA-D40C-4B77-B494-EC707D4EFC55}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36177226-0E42-4E2F-AD98-3C4DCAF7810E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36177226-0E42-4E2F-AD98-3C4DCAF7810E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36177226-0E42-4E2F-AD98-3C4DCAF7810E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36177226-0E42-4E2F-AD98-3C4DCAF7810E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
