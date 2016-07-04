@@ -28,12 +28,10 @@ namespace FileTransferCommon
                     {
                         file_send.Seek(offset, SeekOrigin.Begin);
                         int bytes_read = 0;
-                        UTF8Encoding temp = new UTF8Encoding(true);
                         while ((bytes_read = await file_send.ReadAsync(send_buffer, 0, _default_buffer_size)) > 0)
                         {                           
                             await networkStream.WriteAsync(send_buffer, 0, bytes_read);
-                            Console.WriteLine("file send:" + temp.GetString(send_buffer,0, bytes_read) 
-                                + ", send size:" + bytes_read);
+                            //Console.WriteLine("file send size:" + bytes_read);
                         }
                     }
                 }
@@ -105,15 +103,13 @@ namespace FileTransferCommon
 
                 using (NetworkStream networkStream = tcpClient.GetStream())
                 {
-                    UTF8Encoding temp = new UTF8Encoding(true);
                     while (true)
                     {
                         int receiveSize = await networkStream.ReadAsync(dataBuffer, 0, _default_buffer_size);
                         if (receiveSize > 0)
                         {
                             await _file_common.WriteAsync(dataBuffer, receiveSize);
-                            Console.WriteLine("file receive:"+ temp.GetString(dataBuffer,0, receiveSize)
-                                +", receive size:"+receiveSize);
+                            //Console.WriteLine("file receive size:"+receiveSize);
                         }
                         else
                             break; // Client closed connection
