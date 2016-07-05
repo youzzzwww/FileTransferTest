@@ -16,40 +16,36 @@ namespace FileTransferCommon
         {
             if (!String.IsNullOrEmpty(input_line))
             {
-                using (StreamWriter writer = new StreamWriter(networkStream))
-                {
-                    writer.AutoFlush = true;
-                    await writer.WriteLineAsync(await CommandResolve.Resolve(input_line));
-                    await CommandResolve.ProcessStream(networkStream);
-                }               
+                StreamWriter writer = new StreamWriter(networkStream);              
+                writer.AutoFlush = true;
+                await writer.WriteLineAsync(await CommandResolve.Resolve(input_line));
+                await CommandResolve.ProcessStream(networkStream);               
             }
         }
         public static async Task ProcessStream(Stream networkStream)
         {
             try
             {
-                using (StreamReader reader = new StreamReader(networkStream))
+                StreamReader reader = new StreamReader(networkStream);
+                StreamWriter writer = new StreamWriter(networkStream);                   
+                writer.AutoFlush = true;
+                while (true)
                 {
-                    using (StreamWriter writer = new StreamWriter(networkStream))
+                    string request = await reader.ReadLineAsync();
+                    if (request != null)
                     {
-                        writer.AutoFlush = true;
-                        while (true)
+                        Console.WriteLine("Received echo: " + request);
+                        string echo_str = await CommandResolve.Resolve(request);
+                        if (!String.IsNullOrEmpty(echo_str))
                         {
-                            string request = await reader.ReadLineAsync();
-                            if (request != null)
-                            {
-                                Console.WriteLine("Received echo: " + request);
-                                string echo_str = await CommandResolve.Resolve(request);
-                                if (!String.IsNullOrEmpty(echo_str))
-                                {
-                                    await writer.WriteLineAsync(echo_str);
-                                }
-                            }
-                            else
-                                break; // Client closed connection
+                            await writer.WriteLineAsync(echo_str);
                         }
+                        else
+                            break; // unvalid command or command complete
                     }
-                }
+                    else
+                        break; // Client closed connection
+                }                                   
             }
             catch (Exception ex)
             {
@@ -100,7 +96,7 @@ namespace FileTransferCommon
             }
             else if (command == "move")
             {
-                await FileSend.SendFile(input_array[1], Convert.ToInt64(input_array[3]), 
+                FileSend.SendFile(input_array[1], Convert.ToInt64(input_array[3]), 
                     input_array[4], Convert.ToInt32(input_array[5]));
                 return null;
             }
